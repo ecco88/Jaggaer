@@ -9,18 +9,27 @@ namespace Jaggaer
 {
     namespace TSM
     {
+        public class MenuResult
+        {
+            public IWebDriver Driver { get; set; }
+            public MenuResult(IWebDriver driver)
+            {
+                Driver = driver;
+            }
+        }
         public class SupplierProfileSection
         {
             public IWebDriver Driver { get; set; }
             public void Save()
             {
+
                 //var ele = Driver.FindElement(By.XPath("//form[@name='ActiveForm']"));
                 //Driver.ExecuteJavaScript("arguments[0].submit();", ele);
                 var ele = Driver.FindElement(By.XPath("//input[@type='submit' and @value='Save']"));
                 Driver.ExecuteJavaScript("arguments[0].click();", ele);
             }
             public SupplierProfileSection(IWebDriver driver)
-            {
+        {
                 Driver = driver;
             }
         }
@@ -42,7 +51,11 @@ namespace Jaggaer
                 if (eles[1].Selected != val)
                     Driver.ExecuteJavaScript("arguments[0].click();", eles[1]);
             }
-
+            public void Save()
+            {
+                var ele = Driver.FindElement(By.XPath("//input[@type='button' and @value='Save']"));
+                Driver.ExecuteJavaScript("arguments[0].click();", ele);
+            }
             public bool POSupplier
             {
                 get
@@ -55,11 +68,10 @@ namespace Jaggaer
                 }
             }
         }
-        public class Addresses : SupplierProfileSection
+        public class Addresses : MenuResult
         {
-            public Addresses(IWebDriver driver) : base(driver)
+            public Addresses(IWebDriver driver) :base(driver)
             {
-                Driver = driver;
                 driver.ClickWebElement("//a[.='Show Inactive Addresses']");
             }
             public bool ShowInactiveSites 
@@ -87,7 +99,12 @@ namespace Jaggaer
             }
             public int getPOSiteCount(bool activeOnly=true)
             {
-                string xp = "//table[@class='SearchResults']/tbody/tr/td/a[@class='" + ((activeOnly) ? "ListActive" : "ListInactive") + "' and'Fulfillment)'=substring(.,string-length(.)-string-length('Fulfillment)')+1)]";
+                string xp = "//table[@class='SearchResults']/tbody/tr/td/a[(@class='ListSelected' or @class='" + ((activeOnly) ? "ListActive" : "ListInactive") + "') and 'Fulfillment)'=substring(.,string-length(.)-string-length('Fulfillment)')+1)]";
+                return (Driver.FindElements(By.XPath(xp))).Count;
+            }
+            public int getPaySiteCount(bool activeOnly=true)
+            {
+                string xp = "//table[@class='SearchResults']/tbody/tr/td/a[(@class='ListSelected' or @class='" + ((activeOnly) ? "ListActive" : "ListInactive") + "') and 'Remittance)'=substring(.,string-length(.)-string-length('Remittance)')+1)]";
                 return (Driver.FindElements(By.XPath(xp))).Count;
             }
             public Address Select(int index=1)
@@ -100,15 +117,15 @@ namespace Jaggaer
             {
                 string x2 = POsite ? "Fulfillment" : "Remittance";
                 string xp = "//table[@class='SearchResults']/tbody/tr/td/a[starts-with(.,'" + name + "') and '" + x2 + ")'=substring(., string-length(.) - string-length('" + x2 + ")') +1)]";
-
+                Driver.ClickLink(xp);
                // string xpath = "//table[@class='SearchResults']/tbody/tr/td/a[starts-with('" + name + " (',text()') and ends-with('" + ((POsite) ? "Fulfillment" : "Remittance") + ")',text())]'";
-                var link = Driver.FindElement(By.XPath(xp));              
-                Driver.ExecuteJavaScript("arguments[0].click();", link);
+                //var link = Driver.FindElement(By.XPath(xp));              
+                //Driver.ExecuteJavaScript("arguments[0].click();", link);
                 return new Address(Driver);
             }
             public Address Select(string name)
             {
-                Driver.ExecuteJavaScript("arguments[0].click();", Driver.FindElement(By.XPath("//table[@class='SearchResults']/tbody/tr/td)/a[starts-with(text(),'" + name + "')]")));
+                Driver.ExecuteJavaScript("arguments[0].click();", Driver.FindElement(By.XPath("//table[@class='SearchResults']/tbody/tr/td/a[starts-with(text(),'" + name + "')]")));
                 return new Address(Driver);
             }
             private bool GetChecked(string name)
@@ -122,6 +139,40 @@ namespace Jaggaer
                     Driver.ExecuteJavaScript("arguments[0].click();", eles[0]);
                 if (eles[1].Selected != val)
                     Driver.ExecuteJavaScript("arguments[0].click();", eles[1]);
+            }
+        }
+
+        public class PaymentCustomField : MenuResult
+        {
+            public PaymentCustomField(IWebDriver driver) : base(driver)
+            {
+
+            }
+            public string Terms
+            {
+                get
+                {
+                    return Driver.GetFormValue("//select[@name='CustElement_8177']");
+                }
+                set
+                {
+                    Driver.FillWebElement("//select[@name='CustElement_8177']", value);
+                }
+            }
+            public string Basis
+            {
+                get
+                {
+                    return Driver.GetFormValue("//select[@name='CustElement_8171']");
+                }
+                set
+                {
+                    Driver.FillWebElement("//select[@name='CustElement_8171']", value);
+                }
+            }
+            public void Save()
+            {
+                Driver.ClickButton("//input[@value='Save' and @type='submit']");
             }
         }
         public class Address : SupplierProfileSection
@@ -169,21 +220,31 @@ namespace Jaggaer
             {
                 get
                 {
-                    return Driver.FindElement(By.XPath("(//tr/td/a[text()='Active']/../../td)[2]/input")).GetAttribute("value") == "true";
+                    string test = "";
+                    test= Driver.FindElement(By.XPath("(//tr/td/a[text()='Active']/../../td)[2]/input")).GetAttribute("checked");
+                    //is it 'checked' or 'true'?
+                    return test == "true";
                 }
                 set
                 {
-                    //TODO
+                    if (Active!=value)
+                    {
+                        Driver.ToggleCheckBox("(//tr/td/a[text()='Active']/../../td)[2]/input");
+                    }
                 }
             }
             public bool Primary
             {
                 get
                 {
-                    return Driver.FindElement(By.XPath("(//tr/td/a[text()='Primary']/../../td)[2]/input")).GetAttribute("value") == "true";
+                    return Driver.FindElement(By.XPath("(//tr/td/a[text()='Primary']/../../td)[2]/input")).GetAttribute("checked") == "checked";
                 }
                 set
                 {
+                    if(Primary!=value)
+                    {
+                        Driver.ToggleCheckBox("(//tr/td/a[text()='Primary']/../../td)[2]/input");
+                    }
                     //TODO
                 }
             }
@@ -274,6 +335,34 @@ namespace Jaggaer
                 {
                     Driver.FillWebElement("//textarea", value);
                 }
+            }
+        }
+        public class FulfillmentCenters :MenuResult
+        {
+            public FulfillmentCenters(IWebDriver driver) : base(driver)
+            {
+
+            }
+            public int Count {
+                get
+                {
+                    throw new System.Exception("Not Implemented......");
+                    int result = 0;
+                    return result;
+                } 
+            }
+            public FulfillmentCenter Select(string name)
+            {
+                Driver.ClickLink("//table[@class='SearchResults']/tbody/tr/td/a[.='" + name + "')]");
+                return new FulfillmentCenter(Driver);
+            }
+
+        }
+        public class FulfillmentCenter :SupplierProfileSection
+        {
+            public FulfillmentCenter(IWebDriver driver):base (driver)
+            {
+
             }
         }
     }
